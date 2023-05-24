@@ -1,0 +1,118 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Conversor de Bitcoin',
+      theme: ThemeData.dark(),
+      home: MyHomePage(title: 'Conversor de Bitcoin'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  MyHomePage({Key? key, required this.title}) : super(key: key);
+
+  final String title;
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  double? valorBitcoin;
+  double? valorConvertido;
+  String moedaSelecionada = 'USD';
+  final controladorBitcoin = TextEditingController();
+
+  Future<void> buscarValorBitcoin() async {
+    final resposta = await http.get(Uri.parse('https://api.coindesk.com/v1/bpi/currentprice/BTC.json'));
+    if (resposta.statusCode == 200) {
+      final dados = jsonDecode(resposta.body);
+      setState(() {
+        valorBitcoin = double.tryParse(dados['bpi'][moedaSelecionada]['rate'].replaceAll(',', ''));
+        final entradaBitcoin = double.tryParse(controladorBitcoin.text);
+        if (entradaBitcoin != null) {
+          valorConvertido = entradaBitcoin * valorBitcoin!;
+        } else {
+          valorConvertido = null;
+        }
+      });
+    } else {
+      throw Exception('Falha ao buscar o valor do Bitcoin');
+    }
+  }
+
+  @override
+  void dispose() {
+    controladorBitcoin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.5,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'Conversor de Bitcoin',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 20.0),
+              TextField(
+                controller: controladorBitcoin,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Digite o valor em Bitcoin',
+                ),
+              ),
+              SizedBox(height: 20.0),
+              ElevatedButton(
+                onPressed: buscarValorBitcoin,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  minimumSize: Size(MediaQuery.of(context).size.width * 0.5, 50.0),
+                ),
+                child: Text('Converter'),
+              ),
+              SizedBox(height: 20.0),
+              buildValorConvertido(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildValorConvertido() {
+    return AnimatedOpacity(
+      opacity: valorConvertido != null ? 1.0 : 0.0,
+      duration: Duration(milliseconds: 500),
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text(
+          'Valor convertido: ${valorConvertido?.toStringAsFixed(2) ?? 'N/A'} $moedaSelecionada',
+          style: TextStyle(fontSize: 18.0),
+        ),
+      ),
+    );
+  }
+}
